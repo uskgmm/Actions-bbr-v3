@@ -197,9 +197,9 @@ sudo python3 cve_2026_31431_detector.py
 - 读取 kernel.org 最新 stable 版本。
 - 下载 `gregkh/linux` 对应 stable 分支。
 - 应用仓库内固定 BBRv3 patch。
-- 强制默认启用 BBR。
+- 强制默认启用 BBR 和 fq。
 - 关闭 debug info。
-- 拒绝发布 `*-dbg*.deb`。
+- 拒绝发布 `*-dbg*.deb` / `*-dbgsym*.deb`。
 
 构建不会自动更新 BBR patch 本身。
 
