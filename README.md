@@ -34,7 +34,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/byJoey/Actions-bbr-v3/main/i
 5. 启用 BBR + FQ_CODEL
 6. 启用 BBR + FQ_PIE
 7. 启用 BBR + CAKE
-8. 卸载 BBR 内核
+8. 亚太机器 TCP 调优
+9. 卸载 BBR 内核
 ```
 
 常用流程：
@@ -43,6 +44,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/byJoey/Actions-bbr-v3/main/i
 2. 按提示重启系统。
 3. 重新运行脚本，选择 `3` 检查 BBRv3 状态。
 4. 按需选择 `4` 到 `7` 设置队列算法。
+5. 亚太线路机器可选择 `8` 写入 TCP 收发窗口与空闲慢启动调优。
 
 ## 内核与 BBR 策略
 
@@ -154,6 +156,29 @@ modinfo tcp_bbr 2>/dev/null | grep '^version:'
 /etc/modules-load.d/joeyblog-qdisc.conf
 ```
 
+## 亚太机器 TCP 调优
+
+运行脚本后选择：
+
+```text
+8. 亚太机器 TCP 调优
+```
+
+脚本会立即应用并永久写入以下配置：
+
+```text
+net.ipv4.tcp_wmem = 4096 16384 12582912
+net.ipv4.tcp_rmem = 4096 131072 33554432
+net.ipv4.tcp_limit_output_bytes = 4194304
+net.ipv4.tcp_slow_start_after_idle = 0
+```
+
+配置文件路径：
+
+```text
+/etc/sysctl.d/99-joeyblog.conf
+```
+
 ## 安全缓解
 
 脚本启动时会写入 Dirty Frag 风险面收敛规则：
@@ -208,7 +233,7 @@ sudo python3 cve_2026_31431_detector.py
 运行脚本后选择：
 
 ```text
-8. 卸载 BBR 内核
+9. 卸载 BBR 内核
 ```
 
 脚本会卸载由本项目安装的 `joeyblog` 内核包，并更新引导配置。卸载后建议重启。

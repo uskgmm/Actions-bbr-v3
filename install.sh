@@ -83,6 +83,44 @@ clean_sysctl_conf() {
     sudo sed -i '/net.ipv4.tcp_congestion_control/d' "$SYSCTL_CONF"
 }
 
+# 函数：清理亚太线路调优配置
+clean_apac_tuning_conf() {
+    sudo touch "$SYSCTL_CONF"
+    sudo sed -i '/net.ipv4.tcp_wmem/d' "$SYSCTL_CONF"
+    sudo sed -i '/net.ipv4.tcp_rmem/d' "$SYSCTL_CONF"
+    sudo sed -i '/net.ipv4.tcp_limit_output_bytes/d' "$SYSCTL_CONF"
+    sudo sed -i '/net.ipv4.tcp_slow_start_after_idle/d' "$SYSCTL_CONF"
+}
+
+# 函数：应用亚太机器 TCP 调优
+apply_apac_tuning() {
+    echo -e "\033[36m正在应用亚太机器 TCP 调优...\033[0m"
+
+    if sudo sysctl -w net.ipv4.tcp_wmem="4096 16384 12582912" > /dev/null \
+        && sudo sysctl -w net.ipv4.tcp_rmem="4096 131072 33554432" > /dev/null \
+        && sudo sysctl -w net.ipv4.tcp_limit_output_bytes="4194304" > /dev/null \
+        && sudo sysctl -w net.ipv4.tcp_slow_start_after_idle="0" > /dev/null; then
+        echo -e "\033[1;32m✔ 亚太机器 TCP 调优已立即生效\033[0m"
+    else
+        echo -e "\033[31m✘ 亚太机器 TCP 调优应用失败，请检查当前内核是否支持这些 sysctl 项。\033[0m"
+        return 1
+    fi
+
+    clean_apac_tuning_conf
+    {
+        echo "net.ipv4.tcp_wmem = 4096 16384 12582912"
+        echo "net.ipv4.tcp_rmem = 4096 131072 33554432"
+        echo "net.ipv4.tcp_limit_output_bytes = 4194304"
+        echo "net.ipv4.tcp_slow_start_after_idle = 0"
+    } | sudo tee -a "$SYSCTL_CONF" > /dev/null
+
+    echo -e "\033[1;32m✔ 亚太机器 TCP 调优已永久写入：$SYSCTL_CONF\033[0m"
+    echo -e "\033[36m  tcp_wmem:                 \033[1;32m$(sysctl -n net.ipv4.tcp_wmem)\033[0m"
+    echo -e "\033[36m  tcp_rmem:                 \033[1;32m$(sysctl -n net.ipv4.tcp_rmem)\033[0m"
+    echo -e "\033[36m  tcp_limit_output_bytes:   \033[1;32m$(sysctl -n net.ipv4.tcp_limit_output_bytes)\033[0m"
+    echo -e "\033[36m  tcp_slow_start_after_idle:\033[1;32m $(sysctl -n net.ipv4.tcp_slow_start_after_idle)\033[0m"
+}
+
 # 函数：加载队列调度模块
 load_qdisc_module() {
     local qdisc_name="$1"
@@ -430,9 +468,10 @@ echo -e "\033[33m 4. ⚡ 启用 BBR + FQ\033[0m"
 echo -e "\033[33m 5. ⚡ 启用 BBR + FQ_CODEL\033[0m"
 echo -e "\033[33m 6. ⚡ 启用 BBR + FQ_PIE\033[0m"
 echo -e "\033[33m 7. ⚡ 启用 BBR + CAKE\033[0m"
-echo -e "\033[33m 8. 🗑️  卸载 BBR 内核\033[0m"
+echo -e "\033[33m 8. 🌏 亚太机器 TCP 调优\033[0m"
+echo -e "\033[33m 9. 🗑️  卸载 BBR 内核\033[0m"
 print_separator
-echo -n -e "\033[36m请选择一个操作 (1-8) (｡･ω･｡): \033[0m"
+echo -n -e "\033[36m请选择一个操作 (1-9) (｡･ω･｡): \033[0m"
 read -r ACTION
 
 case "$ACTION" in
@@ -510,6 +549,10 @@ case "$ACTION" in
         ask_to_save
         ;;
     8)
+        echo -e "\033[1;32m(๑•̀ㅂ•́)و✧ 您选择了亚太机器 TCP 调优！\033[0m"
+        apply_apac_tuning
+        ;;
+    9)
         echo -e "\033[1;32mヽ(・∀・)ノ 您选择了卸载 BBR 内核！\033[0m"
         PACKAGES_TO_REMOVE=$(dpkg -l | grep "joeyblog" | awk '{print $2}' | tr '\n' ' ')
         if [[ -n "$PACKAGES_TO_REMOVE" ]]; then
@@ -522,6 +565,6 @@ case "$ACTION" in
         fi
         ;;
     *)
-        echo -e "\033[31m(￣▽￣)ゞ 无效的选项，请输入 1-8 之间的数字哦~\033[0m"
+        echo -e "\033[31m(￣▽￣)ゞ 无效的选项，请输入 1-9 之间的数字哦~\033[0m"
         ;;
 esac
