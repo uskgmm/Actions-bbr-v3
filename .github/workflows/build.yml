@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: bbrv3-kernel-build
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   cleanup:
@@ -150,15 +150,36 @@ jobs:
           fi
           find ./kernel -maxdepth 1 -name 'linux-*.deb' -print | sort
 
-      - name: 上传 deb 包
+      - name: 发布前复查是否已发布
         if: env.BUILD_NEEDED == 'true'
+        run: |
+          tag="${{ matrix.arch }}-${KERNEL_VERSION}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "PUBLISH_NEEDED=false" >> "$GITHUB_ENV"
+            echo "$tag was published while this job was running; skipping upload and release."
+          else
+            echo "PUBLISH_NEEDED=true" >> "$GITHUB_ENV"
+            mkdir -p ./publish-markers
+            touch "./publish-markers/${{ matrix.arch }}"
+            echo "$tag still missing; publishing this build."
+          fi
+
+      - name: 上传发布标记
+        if: env.BUILD_NEEDED == 'true' && env.PUBLISH_NEEDED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-${{ matrix.arch }}-${{ env.KERNEL_VERSION }}
+          path: ./publish-markers/${{ matrix.arch }}
+
+      - name: 上传 deb 包
+        if: env.BUILD_NEEDED == 'true' && env.PUBLISH_NEEDED == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: deb-${{ matrix.arch }}
           path: ./kernel/linux-*.deb
 
       - name: 发布到 GitHub Release
-        if: env.BUILD_NEEDED == 'true'
+        if: env.BUILD_NEEDED == 'true' && env.PUBLISH_NEEDED == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ matrix.arch }}-${{ env.KERNEL_VERSION }}
@@ -183,16 +204,33 @@ jobs:
           path: ./generated-configs
           merge-multiple: true
 
+      - name: 下载发布标记
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: publish-*
+          path: ./publish-markers
+          merge-multiple: true
+
       - name: 回写配置基线
         run: |
           set -euxo pipefail
+          if [ ! -d ./publish-markers ] || ! find ./publish-markers -type f | grep -q .; then
+            echo "No published architectures found; skipping baseline update."
+            exit 0
+          fi
+
           if [ ! -f ./generated-configs/x86_64.config ] && [ ! -f ./generated-configs/arm64.config ]; then
             echo "No generated configs found; nothing to update."
             exit 0
           fi
 
-          [ -f ./generated-configs/x86_64.config ] && cp ./generated-configs/x86_64.config ./x86-64.config
-          [ -f ./generated-configs/arm64.config ] && cp ./generated-configs/arm64.config ./arm64.config
+          if [ -f ./publish-markers/x86_64 ] && [ -f ./generated-configs/x86_64.config ]; then
+            cp ./generated-configs/x86_64.config ./x86-64.config
+          fi
+          if [ -f ./publish-markers/arm64 ] && [ -f ./generated-configs/arm64.config ]; then
+            cp ./generated-configs/arm64.config ./arm64.config
+          fi
 
           if git diff --quiet -- x86-64.config arm64.config; then
             echo "Generated configs match current baselines."
