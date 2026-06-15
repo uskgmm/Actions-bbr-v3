@@ -51,9 +51,9 @@ replacements = {
     r"static const u32 bbr_inflight_headroom = .*?;": "static const u32 bbr_inflight_headroom = 0;",
     r"static const u32 bbr_bw_probe_cwnd_gain = .*?;": "static const u32 bbr_bw_probe_cwnd_gain = 3;",
     r"static const u32 bbr_bw_probe_max_rounds = .*?;": "static const u32 bbr_bw_probe_max_rounds = 1;",
-    r"static const u32 bbr_bw_probe_rand_rounds = .*?;": "static const u32 bbr_bw_probe_rand_rounds = 0;",
+    r"static const u32 bbr_bw_probe_rand_rounds = .*?;": "static const u32 bbr_bw_probe_rand_rounds = 1;",
     r"static const u32 bbr_bw_probe_base_us = .*?;": "static const u32 bbr_bw_probe_base_us = 1000;",
-    r"static const u32 bbr_bw_probe_rand_us = .*?;": "static const u32 bbr_bw_probe_rand_us = 0;",
+    r"static const u32 bbr_bw_probe_rand_us = .*?;": "static const u32 bbr_bw_probe_rand_us = 1;",
 }
 
 missing = []
